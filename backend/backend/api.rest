@@ -1,0 +1,5 @@
+GET  http://127.0.0.1:8000/api/usuario-actual1/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU3OTExODc1LCJpYXQiOjE3NTc5MTE1NzUsImp0aSI6ImJjN2RhY2JhYTQ0OTQzNzM4NWRmOTliZTA0MDhkMGIzIiwidXNlcl9pZCI6IjEifQ.oymhyCbeA8Kglv_pC3VbxHsgdlGpMbF-KU7YuFyRhe4 
+content-Type:application/json
+
+

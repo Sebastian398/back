@@ -1,0 +1,19 @@
+Activación de Cuenta - {{ site_name|default:"PlantIQ" }}
+
+Hola {{ username|default:"Usuario" }},
+
+Gracias por registrarte en {{ site_name|default:"PlantIQ" }}. Para activar tu cuenta, por favor visita el siguiente enlace:
+
+{{ url_activacion }}
+
+Si el botón no funciona, copia y pega esta URL en tu navegador.
+
+⚠️ Importante:
+- Este enlace es válido durante 48 horas desde su envío.
+- Si no solicitaste esta activación, ignora este correo.
+- Por seguridad, no compartas este enlace con nadie.
+
+Gracias,
+El equipo de {{ site_name|default:"PlantIQ" }}
+
+Este es un correo automático, no respondas a esta dirección.

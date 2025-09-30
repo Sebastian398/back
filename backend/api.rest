@@ -1,0 +1,10 @@
+GET https://plantiq-07xw.onrender.com/api/usuario-actual1/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU5MTk1ODE0LCJpYXQiOjE3NTkxOTIyMTUsImp0aSI6ImIxMjZlODRkYzIwZjQzZTFhYTk5YTI4NDRhNmRhYWVjIiwidXNlcl9pZCI6IjIifQ.QXQ1-PZgRxKF53puy91JS2jxzt-pSEaf6gtn4k8xTuQ 
+content-Type:application/json
+
+{
+  "first_name": "Sebas",
+  "last_name": "Delgadillo",
+  "email": "neider.ramirezdelgadillo@gmail.com",
+  "telefono": "3115331270"
+}
