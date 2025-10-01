@@ -156,10 +156,10 @@ class FincaSerializer(serializers.ModelSerializer):
 
 class UserDetailSerializer1(serializers.ModelSerializer):
     telefono = serializers.CharField(source='perfilusuario.telefono', allow_blank=True, required=False)
-    avatar_url = serializers.SerializerMethodField()  # Nuevo campo calculado para URL de avatar
+    avatar_url = serializers.SerializerMethodField()
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'telefono', 'avatar_url']  # Agregado 'avatar_url'
+        fields = ['first_name', 'last_name', 'email', 'telefono', 'avatar_url']
         
     def get_avatar_url(self, obj):
         if hasattr(obj, 'perfilusuario') and obj.perfilusuario.avatar:
@@ -251,7 +251,7 @@ class PerfilUsuarioSerializer(serializers.ModelSerializer):
         fields = ['avatar_url', 'telefono']
 
     def get_avatar_url(self, obj):
-        if obj.avatar:
-            request = self.context.get('request')
-            return request.build_absolute_uri(obj.avatar.url)
+        # CORREGIDO: Usar avatar_url en lugar de avatar
+        if obj.avatar_url:
+            return obj.avatar_url
         return None
