@@ -162,11 +162,11 @@ class UserDetailSerializer1(serializers.ModelSerializer):
         fields = ['first_name', 'last_name', 'email', 'telefono', 'avatar_url']
         
     def get_avatar_url(self, obj):
-        if hasattr(obj, 'perfilusuario') and obj.perfilusuario.avatar:
+        if hasattr(obj, 'perfilusuario') and obj.perfilusuario.avatar_url:
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.perfilusuario.avatar.url)
-            return obj.perfilusuario.avatar.url
+            return obj.perfilusuario.avatar_url
         return None  # O una URL default si quieres, ej: '/static/default-avatar.png'
 
     def update(self, instance, validated_data):
