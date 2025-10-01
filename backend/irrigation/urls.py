@@ -12,7 +12,6 @@ from .views import (SensorViewSet, ProgramacionRiegoViewSet,
                     CultivoViewSet, LogoutView, 
                     InfoFincaView, InfoFincaEditarView, 
                     UserUpdateView, CustomPasswordResetView, 
-                    CustomPasswordResetConfirmView,
                     UpdateAvatarView)
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -65,7 +64,6 @@ urlpatterns = [
     path('info_finca/editar/', InfoFincaEditarView.as_view(), name='info_finca_editar'),
     path('usuario-actual/editar/', UserUpdateView.as_view(), name='usuario-actual-editar'),
     path('password_reset/', CustomPasswordResetView.as_view(), name='password_reset'),
-    path('update-avatar/', UpdateAvatarView.as_view(), name='update-avatar'),
     path('update-avatar/', UpdateAvatarView.as_view(), name='update-avatar'),
     path('', include(router.urls)),                              
 ]

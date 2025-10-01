@@ -389,7 +389,7 @@ class UpdateAvatarView(APIView):
             from .models import PerfilUsuario
             perfil = PerfilUsuario.objects.create(user=request.user)
             
-        file_obj = request.FILES.get('avatar_url')
+        file_obj = request.FILES.get('avatar_url') 
         if not file_obj:
             return Response({'detail':'No se envió imagen'}, status=status.HTTP_400_BAD_REQUEST)
         
