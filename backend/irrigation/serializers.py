@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.utils.crypto import get_random_string
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Sensor, ProgramacionRiego, RegistroRiego, LecturaSensor, Cultivo, Finca, PerfilUsuario
+from .models import Sensor, ProgramacionRiego, RegistroRiego, LecturaSensor, Cultivo, Finca, PerfilUsuario, BombaStatus
 from rest_framework.reverse import reverse
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
@@ -255,3 +255,8 @@ class PerfilUsuarioSerializer(serializers.ModelSerializer):
         if obj.avatar_url:
             return obj.avatar_url
         return None
+
+class BombaStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BombaStatus
+        fields = ['id', 'is_on', 'last_updated']

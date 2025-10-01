@@ -1,4 +1,5 @@
 from django.urls import path, include
+from . import views 
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -44,6 +45,8 @@ class ApiRootView(APIView):
             'usuario-actual-editar': request.build_absolute_uri('usuario-actual/editar/'),
             'password_reset': request.build_absolute_uri('password_reset/'),
             'password_reset_confirm': request.build_absolute_uri('password_reset/confirm/'),
+            'bomba': request.build_absolute_uri('bomba/'),
+            'humedad': request.build_absolute_uri('humedad/'),
 
         })
 
@@ -65,6 +68,8 @@ urlpatterns = [
     path('usuario-actual/editar/', UserUpdateView.as_view(), name='usuario-actual-editar'),
     path('password_reset/', CustomPasswordResetView.as_view(), name='password_reset'),
     path('update-avatar/', UpdateAvatarView.as_view(), name='update-avatar'),
+    path('bomba/', views.bomba_handler, name='bomba_handler'),  # GET/POST /api/bomba/ - Estado bomba (ya funciona: 200 OK)
+    path('humedad/', views.receive_lectura_sensor, name='receive_lectura_sensor'),
     path('', include(router.urls)),                              
 ]
 

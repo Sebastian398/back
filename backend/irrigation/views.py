@@ -6,7 +6,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import Sensor, ProgramacionRiego, ActivacionUsuario, RegistroRiego, LecturaSensor, Cultivo, Finca, PerfilUsuario
+from .models import (Sensor, ProgramacionRiego, ActivacionUsuario, 
+                     RegistroRiego, LecturaSensor, Cultivo, Finca, 
+                     BombaStatus, PerfilUsuario)
+
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -16,10 +19,11 @@ from django.shortcuts import get_object_or_404
 from django.utils.timezone import now, timedelta
 from django.db.models import Avg, Min, Max
 from django.core.files.storage import default_storage
-from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import MultiPartParser, FormParser
 from .utils import upload_image_to_github
 import tempfile
 import os
+from rest_framework.decorators import api_view
 from .serializers import (
     SensorSerializer,
     ProgramacionRiegoSerializer,
@@ -33,6 +37,7 @@ from .serializers import (
     CultivoSerializer,
     FincaSerializer,
     PasswordResetSerializer,
+    BombaStatusSerializer,
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -157,7 +162,6 @@ class ProgramacionRiegoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def activar_riego(self, request, pk=None):
         programacion = self.get_object()
-        # Aquí podrías agregar la lógica real para activar el riego mediante hardware
 
         return Response({'mensaje': f'Riego activado por {programacion.duracion} minutos'})
 
@@ -427,3 +431,86 @@ class UpdateAvatarView(APIView):
             finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
+
+@api_view(['GET', 'POST'])
+def receive_lectura_sensor(request):
+    cultivo_id = request.data.get('cultivo_id', 1)
+    try:
+        cultivo = Cultivo.objects.get(id=cultivo_id)
+    except Cultivo.DoesNotExist:
+        return Response({"error": "Cultivo no encontrado"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Hardcodea sensor_id para humedad (crea Sensor tipo='HUMEDAD' en Admin si no existe, ID=1)
+    sensor_id = 1  # Ajusta al ID real de tu Sensor de humedad
+    try:
+        sensor = Sensor.objects.get(id=sensor_id, tipo=Sensor.HUMEDAD)  # Asume modelo Sensor tiene 'tipo'
+    except Sensor.DoesNotExist:
+        return Response({"error": "Sensor de humedad no encontrado (crea en Admin)"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Data para serializer: Mapea 'tipo_sensor' a 'sensor' (requerido)
+    serializer_data = {
+        'sensor': sensor.id,  # ¡CLAVE: Proporciona ID del sensor
+        'cultivo': cultivo.id,
+        'valor': request.data.get('valor', 0)
+    }
+    
+    print(f"DEBUG: POST humedad - Body: {request.data}, Serializer data: {serializer_data}")
+
+    serializer = LecturaSensorSerializer(data=serializer_data)
+    if serializer.is_valid():
+        serializer.save()
+        print(f"DEBUG: Creada LecturaSensor ID: {serializer.data['id']}")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    else:
+        print(f"DEBUG: Error serializer: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Estado de la bomba (GET /api/bomba/)
+@api_view(['GET', 'POST']) 
+def bomba_handler(request):
+    # Obtener o crear el registro de bomba (global, id=1)
+    bomba_status, created = BombaStatus.objects.get_or_create(id=1)
+    
+    if request.method == 'GET':
+        # Obtener estado actual
+        serializer = BombaStatusSerializer(bomba_status)
+        return Response(serializer.data)  # Retorna {'is_on': true/false, 'last_updated': ...}
+    
+    elif request.method == 'POST':
+        # Toggle o actualizar estado
+        new_state = request.data.get('is_on', not bomba_status.is_on)  # Toggle si no se envía
+        serializer = BombaStatusSerializer(bomba_status, data={'is_on': new_state})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Si llega aquí (método no permitido), DRF maneja automáticamente 405
+    return Response({'error': 'Método no permitido'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+class UpdateAvatarView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]  # <-- Esta línea es clave
+
+    def post(self, request):
+        user = request.user
+        if 'image' not in request.FILES:
+            return Response({'error': 'Debe proporcionar una imagen (campo "image")'}, status=status.HTTP_400_BAD_REQUEST)
+        image = request.FILES['image']
+
+        if not image.content_type.startswith('image/'):
+            return Response({'error': 'El archivo debe ser una imagen'}, status=status.HTTP_400_BAD_REQUEST)
+        if image.size > 5 * 1024 * 1024:
+            return Response({'error': 'La imagen no puede exceder 5MB'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            perfil, created = PerfilUsuario.objects.get_or_create(user=user)
+            perfil.avatar = image
+            perfil.save()
+            avatar_url = request.build_absolute_uri(perfil.avatar.url)
+            return Response({
+                'mensaje': 'Avatar actualizado exitosamente',
+                'avatar_url': avatar_url
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Error al guardar la imagen: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

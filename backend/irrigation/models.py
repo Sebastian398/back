@@ -10,11 +10,9 @@ from django.conf import settings
 
 class Sensor(models.Model):
     HUMEDAD = 'humedad'
-    TEMPERATURA = 'temperatura'
 
     TIPO_CHOICES = [
-        (HUMEDAD, 'Humedad'),
-        (TEMPERATURA, 'Temperatura'),
+        (HUMEDAD, 'Humedad')
     ]
 
     tipo = models.CharField(max_length=12, choices=TIPO_CHOICES)    
@@ -143,3 +141,10 @@ class TokenRestablecimiento(models.Model):
             token=token,
             expira=expira
         )
+
+class BombaStatus(models.Model):
+    is_on = models.BooleanField(default=False)
+    last_updated = models.DateTimeField(auto_now=True)
+    class Meta:
+        verbose_name = "Estado Bomba"
+        verbose_name_plural = "Estados Bomba"
