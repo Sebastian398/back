@@ -383,27 +383,40 @@ class UpdateAvatarView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        perfil = request.user.perfilusuario
+        try:
+            perfil = request.user.perfilusuario
+        except:
+            from .models import PerfilUsuario
+            perfil = PerfilUsuario.objects.create(user=request.user)
+            
         file_obj = request.FILES.get('avatar')
         if not file_obj:
             return Response({'detail':'No se envió imagen'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # USAR NOMBRE ÚNICO BASADO EN USER ID
+        file_extension = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'jpg'
+        unique_filename = f"avatar_{request.user.id}.{file_extension}"
         
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             for chunk in file_obj.chunks():
                 tmp.write(chunk)
             tmp.flush()
             tmp_path = tmp.name
-            # Pasar la ruta temporal mientras el archivo todavía existe
+            
             try:
-                url = upload_image_to_github(tmp_path, file_obj.name)
+                # Subir con nombre único
+                url = upload_image_to_github(tmp_path, unique_filename, perfil.avatar_url)
+                
+                perfil.avatar_url = url
+                perfil.save()
+                
+                return Response({
+                    'message': 'Avatar actualizado correctamente',
+                    'avatar_url': url
+                }, status=status.HTTP_200_OK)
+                
             except Exception as e:
-                return Response({'detail': f'Error al subir a GitHub: {str(e)}'}, status=500)
+                return Response({'detail': f'Error al subir la foto: {str(e)}'}, status=500)
             finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
-
-        # Guardar url en perfil si usas modelo con campo avatar_url
-        perfil.avatar_url = url
-        perfil.save()
-
-        return Response({'avatar_url': url})
