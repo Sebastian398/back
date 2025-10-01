@@ -400,7 +400,7 @@ class UpdateAvatarView(APIView):
         user = request.user
         
         # CORREGIDO: Buscar tanto 'image' como 'avatar'
-        image_file = request.FILES.get('image') or request.FILES.get('avatar')
+        image_file = request.FILES.get('avatar') or request.FILES.get('avatar')
         
         if not image_file:
             return Response({
@@ -408,7 +408,7 @@ class UpdateAvatarView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Validar tipo de archivo
-        if not image_file.content_type.startswith('image/'):  # CORREGIDO: era 'avatar/'
+        if not image_file.content_type.startswith('avatars/'):  # CORREGIDO: era 'avatar/'
             return Response({
                 'error': 'El archivo debe ser una imagen'
             }, status=status.HTTP_400_BAD_REQUEST)
