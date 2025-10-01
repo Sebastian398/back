@@ -181,15 +181,21 @@ class RegistroRiegoViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(usuario=self.request.user)
 
-class LecturasHumedadList(generics.ListAPIView):
+class LecturasHumedadCreateListView(generics.ListCreateAPIView):
     serializer_class = LecturaSensorSerializer
-
     def get_queryset(self):
         queryset = LecturaSensor.objects.all().order_by('-fecha_registro')
         cultivo_id = self.request.query_params.get('cultivo')
         if cultivo_id is not None:
             queryset = queryset.filter(cultivo_id=cultivo_id)
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print("Errores de validación:", serializer.errors)  # Esto aparecerá en consola Django
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
     
 class EstadisticasHumedadSemanal(APIView):
     def get(self, request):
@@ -381,56 +387,85 @@ class CustomPasswordResetConfirmView(APIView):
             'mensaje': 'Contraseña restablecida exitosamente. Ahora puedes iniciar sesión con tu nueva contraseña.',
             'email': user.email
         }, status=status.HTTP_200_OK)
-    
-class UpdateAvatarView(APIView):
-    parser_classes = [MultiPartParser]
-    permission_classes = [IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
+# VISTA CORREGIDA PARA UPLOAD DE AVATAR
+class UpdateAvatarView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        print(f"DEBUG AVATAR -> FILES recibidos: {list(request.FILES.keys())}")
+        print(f"DEBUG AVATAR -> DATA recibido: {request.data}")
+        
+        user = request.user
+        
+        # CORREGIDO: Buscar tanto 'image' como 'avatar'
+        image_file = request.FILES.get('image') or request.FILES.get('avatar')
+        
+        if not image_file:
+            return Response({
+                'error': 'Debe proporcionar una imagen (campo "image")'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validar tipo de archivo
+        if not image_file.content_type.startswith('image/'):  # CORREGIDO: era 'avatar/'
+            return Response({
+                'error': 'El archivo debe ser una imagen'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validar tamaño (5MB máximo)
+        if image_file.size > 5 * 1024 * 1024:
+            return Response({
+                'error': 'La imagen no puede exceder 5MB'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-            perfil = request.user.perfilusuario
-        except:
-            from .models import PerfilUsuario
-            perfil = PerfilUsuario.objects.create(user=request.user)
+            # Obtener o crear perfil de usuario
+            perfil, created = PerfilUsuario.objects.get_or_create(user=user)
+            old_avatar_url = perfil.avatar_url if perfil.avatar_url else None
             
-        file_obj = request.FILES.get('avatar')
-        if not file_obj:
-            return Response({'detail':'No se envió imagen'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Obtener la URL anterior para eliminarla
-        old_avatar_url = perfil.avatar_url if perfil.avatar_url else None
-        
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            for chunk in file_obj.chunks():
-                tmp.write(chunk)
-            tmp.flush()
-            tmp_path = tmp.name
+            print(f"DEBUG AVATAR -> Perfil existente: {not created}")
+            print(f"DEBUG AVATAR -> URL anterior: {old_avatar_url}")
             
-            try:
-                # CORREGIDO: Pasar user_id y URL anterior
-                new_url = upload_image_to_github(tmp_path, request.user.id, old_avatar_url)
+            # Subir imagen usando el método existente con GitHub
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                for chunk in image_file.chunks():
+                    tmp.write(chunk)
+                tmp.flush()
+                tmp_path = tmp.name
                 
-                # Guardar nueva URL
-                perfil.avatar_url = new_url
-                perfil.save()
-                
-                print(f"DEBUG AVATAR -> Usuario: {request.user.id}")
-                print(f"DEBUG AVATAR -> URL anterior: {old_avatar_url}")
-                print(f"DEBUG AVATAR -> Nueva URL: {new_url}")
-                
-                return Response({
-                    'message': 'Avatar actualizado correctamente',
-                    'avatar_url': new_url,
-                    'success': True,
-                    'old_url': old_avatar_url  # Para debug
-                }, status=status.HTTP_200_OK)
-                
-            except Exception as e:
-                print(f"ERROR SUBIENDO AVATAR: {str(e)}")
-                return Response({'detail': f'Error al subir la foto: {str(e)}'}, status=500)
-            finally:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
+                try:
+                    # Usar la función existente de GitHub
+                    new_url = upload_image_to_github(tmp_path, user.id, old_avatar_url)
+                    
+                    # Guardar nueva URL en avatar_url
+                    perfil.avatar_url = new_url
+                    perfil.save()
+                    
+                    print(f"DEBUG AVATAR -> Nueva URL guardada: {new_url}")
+                    
+                    return Response({
+                        'message': 'Avatar actualizado exitosamente',
+                        'avatar_url': new_url,
+                        'success': True,
+                        'old_url': old_avatar_url
+                    }, status=status.HTTP_200_OK)
+                    
+                except Exception as e:
+                    print(f"ERROR SUBIENDO AVATAR A GITHUB: {str(e)}")
+                    return Response({
+                        'error': f'Error al subir la imagen: {str(e)}'
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                finally:
+                    # Limpiar archivo temporal
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                        
+        except Exception as e:
+            print(f"ERROR GENERAL EN AVATAR: {str(e)}")
+            return Response({
+                'error': f'Error al procesar la imagen: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET', 'POST'])
 def receive_lectura_sensor(request):
@@ -488,29 +523,3 @@ def bomba_handler(request):
     
     # Si llega aquí (método no permitido), DRF maneja automáticamente 405
     return Response({'error': 'Método no permitido'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-class UpdateAvatarView(APIView):
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  # <-- Esta línea es clave
-
-    def post(self, request):
-        user = request.user
-        if 'image' not in request.FILES:
-            return Response({'error': 'Debe proporcionar una imagen (campo "image")'}, status=status.HTTP_400_BAD_REQUEST)
-        image = request.FILES['image']
-
-        if not image.content_type.startswith('image/'):
-            return Response({'error': 'El archivo debe ser una imagen'}, status=status.HTTP_400_BAD_REQUEST)
-        if image.size > 5 * 1024 * 1024:
-            return Response({'error': 'La imagen no puede exceder 5MB'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            perfil, created = PerfilUsuario.objects.get_or_create(user=user)
-            perfil.avatar = image
-            perfil.save()
-            avatar_url = request.build_absolute_uri(perfil.avatar.url)
-            return Response({
-                'mensaje': 'Avatar actualizado exitosamente',
-                'avatar_url': avatar_url
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': f'Error al guardar la imagen: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -142,6 +142,7 @@ class LecturaSensorSerializer(serializers.ModelSerializer):
     class Meta:
         model = LecturaSensor
         fields = ['id', 'sensor', 'valor', 'fecha_registro', 'cultivo', 'tipo']  
+        read_only_fields = ['id', 'fecha_registro']
 
 class CultivoSerializer(serializers.ModelSerializer):
     programaciones = ProgramacionRiegoSerializer(many=True, read_only=True)
