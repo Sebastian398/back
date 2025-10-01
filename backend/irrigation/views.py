@@ -19,6 +19,7 @@ from django.core.files.storage import default_storage
 from rest_framework.parsers import MultiPartParser
 from .utils import upload_image_to_github
 import tempfile
+import os
 from .serializers import (
     SensorSerializer,
     ProgramacionRiegoSerializer,
@@ -32,8 +33,6 @@ from .serializers import (
     CultivoSerializer,
     FincaSerializer,
     PasswordResetSerializer,
-    AvatarSerializer,
-    PerfilUsuarioSerializer,
 )
 
 class RegisterView(generics.CreateAPIView):
@@ -389,18 +388,21 @@ class UpdateAvatarView(APIView):
         if not file_obj:
             return Response({'detail':'No se envió imagen'}, status=status.HTTP_400_BAD_REQUEST)
         
-        with tempfile.NamedTemporaryFile(delete=True) as tmp:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
             for chunk in file_obj.chunks():
                 tmp.write(chunk)
             tmp.flush()
+            tmp_path = tmp.name
             # Pasar la ruta temporal mientras el archivo todavía existe
             try:
-                url = upload_image_to_github(tmp.name, file_obj.name)
+                url = upload_image_to_github(tmp_path, file_obj.name)
             except Exception as e:
                 return Response({'detail': f'Error al subir a GitHub: {str(e)}'}, status=500)
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
 
         # Guardar url en perfil si usas modelo con campo avatar_url
-        perfil = request.user.perfilusuario
         perfil.avatar_url = url
         perfil.save()
 
