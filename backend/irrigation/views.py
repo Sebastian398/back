@@ -393,12 +393,15 @@ class UpdateAvatarView(APIView):
             for chunk in file_obj.chunks():
                 tmp.write(chunk)
             tmp.flush()
+            # Pasar la ruta temporal mientras el archivo todavía existe
+            try:
+                url = upload_image_to_github(tmp.name, file_obj.name)
+            except Exception as e:
+                return Response({'detail': f'Error al subir a GitHub: {str(e)}'}, status=500)
 
-        file_url = upload_image_to_github(tmp.name, file_obj.name)    
-
+        # Guardar url en perfil si usas modelo con campo avatar_url
         perfil = request.user.perfilusuario
-        perfil.avatar_url = file_url
-        perfil.avatar = file_obj
+        perfil.avatar_url = url
         perfil.save()
-        
-        return Response({'avatar_url': file_url})
+
+        return Response({'avatar_url': url})
