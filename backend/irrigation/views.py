@@ -389,13 +389,12 @@ class UpdateAvatarView(APIView):
             from .models import PerfilUsuario
             perfil = PerfilUsuario.objects.create(user=request.user)
             
-        file_obj = request.FILES.get('avatar_url') 
+        file_obj = request.FILES.get('avatar')
         if not file_obj:
             return Response({'detail':'No se envió imagen'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # USAR NOMBRE ÚNICO BASADO EN USER ID
-        file_extension = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'jpg'
-        unique_filename = f"avatar_{request.user.id}.{file_extension}"
+        # Obtener la URL anterior para eliminarla
+        old_avatar_url = perfil.avatar_url if perfil.avatar_url else None
         
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             for chunk in file_obj.chunks():
@@ -404,18 +403,26 @@ class UpdateAvatarView(APIView):
             tmp_path = tmp.name
             
             try:
-                # Subir con nombre único
-                url = upload_image_to_github(tmp_path, unique_filename, perfil.avatar_url)
+                # CORREGIDO: Pasar user_id y URL anterior
+                new_url = upload_image_to_github(tmp_path, request.user.id, old_avatar_url)
                 
-                perfil.avatar_url = url
+                # Guardar nueva URL
+                perfil.avatar_url = new_url
                 perfil.save()
+                
+                print(f"DEBUG AVATAR -> Usuario: {request.user.id}")
+                print(f"DEBUG AVATAR -> URL anterior: {old_avatar_url}")
+                print(f"DEBUG AVATAR -> Nueva URL: {new_url}")
                 
                 return Response({
                     'message': 'Avatar actualizado correctamente',
-                    'avatar_url': url
+                    'avatar_url': new_url,
+                    'success': True,
+                    'old_url': old_avatar_url  # Para debug
                 }, status=status.HTTP_200_OK)
                 
             except Exception as e:
+                print(f"ERROR SUBIENDO AVATAR: {str(e)}")
                 return Response({'detail': f'Error al subir la foto: {str(e)}'}, status=500)
             finally:
                 if os.path.exists(tmp_path):
