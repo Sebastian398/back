@@ -157,7 +157,7 @@ class UserDetailView(APIView):
 class ProgramacionRiegoViewSet(viewsets.ModelViewSet):
     queryset = ProgramacionRiego.objects.filter(activo=True)
     serializer_class = ProgramacionRiegoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @action(detail=True, methods=['post'])
     def activar_riego(self, request, pk=None):
